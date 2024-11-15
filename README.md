@@ -128,25 +128,3 @@ Node ID | State    | Term | Status  | Last Seen
 Current Leader: 127.0.0.1:5001
 ```
 
-## Project Structure
-```
-src/
-└── raft_implementation/
-    ├── config.json
-    ├── node_manager.py
-    ├── run_node.py
-    └── requirements.txt
-```
-
-## Contributing
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-# raft-implementation
