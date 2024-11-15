@@ -11,10 +11,13 @@ The system consists of:
 based on a ZMQ-based network communication layer
 
 ## Setup
+### Either Download the Zip File Or Clone:
 
-### Prerequisites
-- Python 3.7+
-- virtualenv (recommended)
+```
+git clone https://github.com/trinhnguyen1810/raft-implementation.git
+
+cd raft-implementation
+```
 
 ### Installation
 
@@ -28,13 +31,6 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```bash
 pip install -r requirements.txt
 ```
-
-### Key Dependencies
-- Python 3.7+
-- pyzmq
-- threading
-- json
-
 ## Configuration
 
 Create a `config.json` file in the `src` directory if not already found. It should be in the directory already:
