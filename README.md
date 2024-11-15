@@ -29,6 +29,7 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 2. Install dependencies:
 ```bash
+cd src
 pip install -r requirements.txt
 ```
 ## Configuration
@@ -49,7 +50,6 @@ Create a `config.json` file in the `src` directory if not already found. It shou
 First, start the node manager which coordinates communication between nodes. Open a terminal and type:
 
 ```bash
-cd src
 python node_manager.py config.json
 ```
 
