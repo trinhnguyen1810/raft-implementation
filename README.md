@@ -50,10 +50,10 @@ Create a `config.json` file in the `src` directory if not already found. It shou
 
 ### 1. Start Node Manager
 
-First, start the node manager which coordinates communication between nodes:
+First, start the node manager which coordinates communication between nodes. Open a terminal and type:
 
 ```bash
-cd src/raft_implementation
+cd src
 python node_manager.py config.json
 ```
 
@@ -70,17 +70,17 @@ Open separate terminals for each node and activate the virtual environment in ea
 ```bash
 # Terminal 1
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-cd src/raft_implementation
+cd src
 python run_node.py 1
 
 # Terminal 2
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-cd src/raft_implementation
+cd src
 python run_node.py 2
 
 # Terminal 3
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-cd src/raft_implementation
+cd src
 python run_node.py 3
 ```
 As you run each node, use `status` command to see the status. Alternatively, there should logging statements (which may be decluttering as I mainly used to debug)
