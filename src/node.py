@@ -30,21 +30,21 @@ class Node:
         print(f"Starting Node {node_id} Initialization...")
         print(f"{'='*50}")
 
-        # Step 1: Basic Setup
+        # step 1: basic setup
         print("1. Setting up basic configuration...")
         self.node_id = node_id
         self.config = config
         self._init_logging(verbose)
         self._init_threading()
 
-        # Step 2: Network Configuration
+        # step 2: network configuration
         print("2. Configuring network settings...")
         node_info = self._setup_network_config()
         self._init_node_addresses(node_info)
         print(f" → Node Address: {self.current_id}")
         print(f" → Peer Count: {len(self.peer_ids)}")
 
-        # Step 3: Raft State Initialization
+        # step 3: raft state initialization
         print("3. Initializing Raft state...")
         self._init_raft_state(node_info)
         self._init_log_state()
@@ -52,15 +52,15 @@ class Node:
         print(f" → Initial State: {self.state.value}")
         print(f" → Current Term: {self.cur_term}")
 
-        # Step 4: Network Components
+        # step 4: network components
         print("4. Starting network components...")
         self._init_network_components()
         
-        # Step 5: Timing Configuration
+        # step 5: timing configuration
         print("5. Setting up timing parameters...")
         self._init_timing_config()
 
-        # Completion
+        # completion
         print(f"\nNode {node_id} successfully initialized!")
         print(f"{'='*50}")
         self._log_startup_info()
@@ -73,16 +73,16 @@ class Node:
 
     def _init_node_addresses(self, node_info: dict):
         """Setup node and peer network addresses"""
-        # Setup current node address
+        # setup current node address
         self.current_id = f"{node_info[self.node_id]['ip']}:{node_info[self.node_id]['port']}"
         
-        # Setup peer addresses
+        # setup peer addresses
         self.peer_ids = [
             f"{node_info[node]['ip']}:{node_info[node]['port']}"
             for node in node_info if node != self.node_id
         ]
         
-        # Set identity for messaging
+        # set identity for messaging
         self.identity = {
             'my_id': self.current_id,
             'node_id': self.node_id
@@ -99,27 +99,13 @@ class Node:
 
     def _init_log_state(self):
         """Initialize log and commit tracking"""
-        self.log = [{'term': 1, 'entry': 'INITIAL_ENTRY', 'id': -1}]
+        self.log = [{'term': 1, 'entry': 'INITIAL_ENTRY', 'id': 0}]
         self.commit_index = 0
         self.last_applied_index = 0
         self.last_applied_term = 1
+        self.next_entry_id = 1 
         self.log_hash = {}
 
-    """def _init_leader_state(self, node_info: dict):
-        Initialize leader-specific state tracking
-        self.next_index = {
-            peer_id: len(self.log) 
-            for peer_id in node_info if peer_id != self.node_id
-        }
-        self.match_index = {
-            peer_id: 0 
-            for peer_id in node_info if peer_id != self.node_id
-        }
-        self.last_heartbeat_times = {
-            peer_id: 0 
-            for peer_id in node_info if peer_id != self.node_id
-        }
-        """
     
     def _initialize_leader_state(self):
         """Initialize necessary state variables for the leader"""
@@ -643,14 +629,14 @@ class Node:
                 return
                 
             if self.next_index[sender] is not None:
-                # Access the nested dictionary correctly
+                # access the nested dictionary correctly
                 if isinstance(message.results, dict) and message.results.get('success', False):
                     # Success case
                     self.match_index[sender] = self.next_index[sender]
                     self.next_index[sender] = self.log_last_idx() + 1
                     #self.logger.debug(f"Successfully updated indices for {sender}")
                 else:
-                    # Failure case
+                    # failure case
                     self.next_index[sender] = max(0, self.next_index[sender] - 1)
                     #self.logger.debug(f"Decremented next_index for {sender}")
                     
@@ -680,17 +666,17 @@ class Node:
             self.logger.info(f"Processing state change request from {message.sender}")
             self.logger.info(f"Current state: {self.state.value}, Requested state: {message.new_state}")
             
-            # Convert string state to enum
+            # convert string state to enum
             try:
                 new_state = NodeState(message.new_state)
             except ValueError:
                 self.logger.error(f"Invalid state requested: {message.new_state}")
                 return
 
-            # Change state
+            # change state
             self.set_state(new_state)
             
-            # Send acknowledgment
+            # send acknowledgment
             response = {
                 'type': MsgType.Acknowledge.value,
                 'term': self.cur_term,
@@ -868,74 +854,64 @@ class Node:
     def replicate_log(self, entry):
         """Replicate log entries to all nodes as leader"""
         try:
-            # debug log before appending
-            #self.logger.debug(f"Replicating log entry: {entry}")
-            
-            #  append the entry to our log
-            current_idx = self.log_last_idx()
-            #self.logger.debug(f"Current last_log_idx before append: {current_idx}")
-            
-            # get the term for the current index
+            # get current index BEFORE appending
+            current_idx = len(self.log) - 1
             current_term = self.log[current_idx]['term']
             
-            # append the new entry
+            # assign new ID to entry if it doesn't have one
+            if isinstance(entry, dict):
+                if 'id' not in entry or entry['id'] == -1:
+                    entry['id'] = self.next_entry_id
+                    self.next_entry_id += 1
+            
+            #append the new entry
             self.log.append(entry)
-            new_idx = self.log_last_idx()
-            #self.logger.debug(f"New last_log_idx after append: {new_idx}")
+            new_idx = len(self.log) - 1
+            
+            self.logger.debug(f"Replicating entry at index {new_idx}: {entry}")
 
-            # replicate to peers
+            #replicate to peers
             for peer_id, next_idx in self.next_index.items():
                 if next_idx is not None:
-                    self.logger.debug(f"Replicating to peer {peer_id}, next_idx: {next_idx}")
-                    self.replicate_to_follower(current_idx, current_term, entry, peer_id)
+                    entries = [entry]
+                    self.replicate_to_follower(current_idx, current_term, entries, peer_id)
                     self.next_index[peer_id] = new_idx + 1
 
-            # update leader's own tracking
-            self.next_index[self.current_id] = None  # leader doesn't send to self
-            self.match_index[self.current_id] = new_idx  # leader has latest log
+            # Update leader's own tracking
+            self.next_index[self.current_id] = None
+            self.match_index[self.current_id] = new_idx
             
         except Exception as e:
             self.logger.error(f"Error in replicate_log: {e}", exc_info=True)
 
 
     def log_entry(self, entry, commit=False, last_log_idx=None):
-        """Log entry management and commit handling"""
+        """Log entry management"""
         try:
             with self.client_lock:
-                # Debug input values
-                #self.logger.debug(f"log_entry called with:")
-                #self.logger.debug(f"- entry: {entry}")
-                #self.logger.debug(f"- last_log_idx: {last_log_idx} (type: {type(last_log_idx)})")
-                
-                # convert string to int if needed
-                if isinstance(last_log_idx, str):
-                    last_log_idx = int(last_log_idx)
-                    #self.logger.debug(f"Converted last_log_idx to int: {last_log_idx}")
-                
-                # set default if None
-                if last_log_idx is None:
-                    last_log_idx = len(self.log) - 1
-                    #self.logger.debug(f"Using default last_log_idx: {last_log_idx}")
-                
-                # Get term from previous entry
+                last_log_idx = max(0, int(last_log_idx)) if last_log_idx is not None else len(self.log) - 1
                 last_log_term = self.log[last_log_idx]['term']
                 
-                # Add new entry
-                self.log.append(entry)
-                if 'id' in entry:
+                #handle entry being list or single entry
+                if isinstance(entry, list):
+                    for e in entry:
+                        e['id'] = self.next_entry_id
+                        self.next_entry_id += 1
+                        self.log.append(e)
+                        self.log_hash[e['id']] = e
+                else:
+                    entry['id'] = self.next_entry_id
+                    self.next_entry_id += 1
+                    self.log.append(entry)
                     self.log_hash[entry['id']] = entry
-
-                # Commit if needed
+                
                 if commit:
-                    self.commit_entry(last_log_idx, entry['term'])
+                    self.commit_entry(len(self.log) - 1, entry['term'])
 
                 return last_log_idx, last_log_term
 
         except Exception as e:
-            self.logger.error(f"Error appending entry: {e}")
-            self.logger.error(f"Entry: {entry}")
-            self.logger.error(f"last_log_idx: {last_log_idx} (type: {type(last_log_idx)})")
-            self.logger.error("Stack trace:", exc_info=True)
+            self.logger.error(f"Error in log_entry: {e}")
             return None, None
         
     
